@@ -1,0 +1,128 @@
+program kotek1;
+@use "screen/screen"
+@use "system/memory"
+var
+@export "sprites/kotek.flf" "sprites/kotek.bin" 256
+	i : byte=0;
+	
+	//const useKernal : byte = 0;
+
+//polozenie kota
+	sprite_x : integer = 160;
+	sprite_y : byte = 100;
+	
+	joystick_dir : byte;
+	
+	@define spriteLoc $2000
+	
+	const useSprite:byte = 0;
+	
+	const joystickPort: byte = 2;
+   	const useBank:byte = 0;
+   	
+   	kotek:incbin("sprites/kotek.bin", @spriteLoc);
+   	
+   	playerMoveSprite : array[10] of byte = (0, 0, 0, 0, 0, 1, 1, 1, 1, 1);
+   	playerMoveSpriteLeft : array[10] of byte = (2, 2, 2, 2, 2, 3, 3, 3, 3, 3);
+   	playerMovement : byte = 0;
+   	const playerMovementCounterMax : byte = 6;
+   	playerMovementCounter : byte = 0;
+   	
+procedure InitScreen();
+begin
+	Screen::border:=$0d;
+	Screen::background:=black;
+	
+	Screen::Clear(#Screen::screen0, key_space);
+	Screen::PrintString("JOYSTI8CK W 2 PORCIE",1,23,#Screen::screen0);
+end; 
+
+// This method initializes the sprites
+procedure InitSprites();
+begin
+	// Set all sprites to be multicolor
+	sprite_multicolor:=$ff;
+	// Set common sprite multicolor #1 
+	sprite_multicolor_reg1:=black;
+	// Set  common sprite multicolor #2 
+	sprite_multicolor_reg2:=white;
+	// Set sprite "0" individual color value 
+	sprite_color[useSprite]:=grey;
+	// Turn on sprite 0 (or @useSprite)
+	togglebit(sprite_bitmask,useSprite,1);
+end;
+
+// This method is called one time per raster cycle
+procedure UpdateSprite();
+begin
+	// Update sprite position based on joystick values
+	sprite_x+= (joystickright - joystickleft);
+	sprite_y+= joystickdown - joystickup;
+	// Update the sprite position on screen for sprite number @useSprite	
+	SpritePos(sprite_x, sprite_y, useSprite);
+	
+	// Set left/right offset pointer for sprite
+	if (joystickright) then
+		begin
+		joystick_dir := 1;
+		playerMovement := playerMovement + 1;
+		i:=playerMoveSprite[playerMovement];
+	//SetSpriteLoc(useSprite, @spriteLoc/64 + joystick_dir, useBank);
+	SetSpriteLoc(useSprite, @spriteLoc/64 + i, useBank);
+	//joystick_dir := 0;
+	if (playerMovement > 8) then playerMovement:=0; 
+		end;
+		
+		
+	if (joystickleft) then
+		begin
+		joystick_dir := 0;
+		playerMovement := playerMovement + 1;
+		i:=playerMoveSpriteLeft[playerMovement];
+	//SetSpriteLoc(useSprite, @spriteLoc/64 + joystick_dir, useBank);
+	SetSpriteLoc(useSprite, @spriteLoc/64 + i, useBank);
+	//joystick_dir := 0;
+	if (playerMovement > 8) then playerMovement:=0; 
+	end;
+	//if (joystick_dir<>0 or (joystickup=1 or joystickdown=1)) then
+	//begin
+	//	if (playerMovementCounter=0) then
+	//	begin
+	//		playerMovementCounter := playerMovementCounterMax;
+	//		playerMovement := mod(playerMovement+1,8);
+	//	end			
+	//	else
+	//		dec(playerMovementCounter);
+		
+	//end;
+	Screen::PrintNumber(playerMovement, 1, 22,20, #Screen::screen0);
+	// Set the sprite pointer to point to the sprite data + direction offset
+	   //i:=playerMoveSprite[playerMovement];
+	//SetSpriteLoc(useSprite, @spriteLoc/64 + joystick_dir, useBank);
+	   SetSpriteLoc(useSprite, @spriteLoc/64 + i, useBank);
+	//joystick_dir := 0;
+	   //if (playerMovement > 8) then playerMovement:=0; 
+	
+				
+
+
+end;
+// This interrupt is triggered one time pr raster cycle
+interrupt MainRaster();
+begin
+	startirq(1);
+	// Update joystick here
+	Memory::Fill(#joystickup,0,5);
+	Joystick(joystickPort);
+	// Update sprites
+	UpdateSprite();	
+	closeirq();
+end;
+
+// Main program
+begin
+	InitScreen();
+	InitSprites();
+	StartRasterChain(MainRaster(),0,1);		
+	Loop();
+end.
